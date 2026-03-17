@@ -14,13 +14,8 @@ import open3d as o3d
 import pdb
 
 class AffordanceDataset(Dataset):
-    def __init__(self, root_dir, split, use_processed_data=False, use_division=False, use_processed_data_3=False, 
+    def __init__(self, root_dir, split, use_processed_data=False, use_division=False, use_processed_data_3=False,
     use_sam2=False, use_sam2_1=False, use_processed_final_train=False):
-        """
-        :param root_dir: 数据集根目录
-        :param split: 数据集划分（'train' 或 'val'）
-        :param use_processed_data: 是否使用预处理后的数据
-        """
         self.root_dir = root_dir
         self.split = split
         self.use_processed_data = use_processed_data
@@ -31,13 +26,10 @@ class AffordanceDataset(Dataset):
         self.use_processed_final_train = use_processed_final_train
 
         if self.use_sam2:
-            # self.processed_dir = os.path.join(root_dir, 'processed_sam2_clipwithaffordance', split)
-            # self.processed_dir = os.path.join(root_dir, 'processed_sam2_clipwithaffordance_manual_refine', split)
-            self.processed_dir = '/data/helian/affseg/processed_sam2_clipwithaffordance_manual_refine_new/val'
+            self.processed_dir = os.path.join(root_dir, 'processed_sam2', split)
             if not os.path.exists(self.processed_dir):
-                raise ValueError(f"预处理数据目录 {self.processed_dir} 不存在，请先运行preprocess_data_sam2.py")
+                raise ValueError(f"Processed dir not found: {self.processed_dir}, run preprocess_data_sam2.py first")
             self.data_items = []
-            # 遍历所有visit_id/scan_id/desc_id目录，收集每个数据项
             for visit_id in os.listdir(self.processed_dir):
                 visit_path = os.path.join(self.processed_dir, visit_id)
                 if not os.path.isdir(visit_path):
@@ -50,7 +42,6 @@ class AffordanceDataset(Dataset):
                         desc_path = os.path.join(scan_path, desc_id)
                         if not os.path.isdir(desc_path):
                             continue
-                        # 检查六个文件是否都存在
                         files = [
                             "filtered_point_cloud.ply",
                             "gt_mask_global.npy",
@@ -65,14 +56,12 @@ class AffordanceDataset(Dataset):
                                 "scan_id": scan_id,
                                 "desc_id": desc_id,
                                 "base_path": desc_path
-                            })           
-
+                            })
         if self.use_sam2_1:
             self.processed_dir = os.path.join(root_dir, 'processed_sam2_clipwithaffordance_1', split)
             if not os.path.exists(self.processed_dir):
-                raise ValueError(f"预处理数据目录 {self.processed_dir} 不存在，请先运行preprocess_data_sam2_1.py")
+                raise ValueError(f"Processed dir not found: {self.processed_dir}")
             self.data_items = []
-            # 遍历所有visit_id/scan_id/desc_id/image_id目录，收集每个数据项
             for visit_id in os.listdir(self.processed_dir):
                 visit_path = os.path.join(self.processed_dir, visit_id)
                 if not os.path.isdir(visit_path):
@@ -89,7 +78,6 @@ class AffordanceDataset(Dataset):
                             image_path = os.path.join(desc_path, image_id)
                             if not os.path.isdir(image_path):
                                 continue
-                            # 检查六个文件是否都存在
                             files = [
                                 "filtered_point_cloud.ply",
                                 "gt_mask_global.npy",
@@ -106,39 +94,26 @@ class AffordanceDataset(Dataset):
                                     "image_id": image_id,
                                     "base_path": image_path
                                 })
-            # 注释：
-            # data_items中的每一项为一个dict，包含该数据的visit_id、scan_id、desc_id、image_id和该image_id目录的base_path。
-            # 后续getitem可直接用base_path拼接文件名读取数据。
-        
-
-        # 如果使用分割后的mask
         if self.use_division:
             self.processed_dir = os.path.join(root_dir, 'processed_data_segment_16385', split)
             if not os.path.exists(self.processed_dir):
-                raise ValueError(f"预处理数据目录 {self.processed_dir} 不存在，请先运行preprocess_data2.py")
-        
-        # 如果使用预处理数据，检查是否存在
+                raise ValueError(f"Processed dir not found: {self.processed_dir}")
         if self.use_processed_data:
             self.processed_dir = os.path.join(root_dir, 'processed_data_sample_65536', split)
             if not os.path.exists(self.processed_dir):
-                raise ValueError(f"预处理数据目录 {self.processed_dir} 不存在，请先运行preprocess_data.py")
-            
-            # 加载处理信息
+                raise ValueError(f"Processed dir not found: {self.processed_dir}")
             with open(os.path.join(self.processed_dir, 'process_info.json'), 'r') as f:
                 self.process_info = json.load(f)
         
         if self.use_processed_data_3:
             self.processed_dir = os.path.join(root_dir, 'processed4', split)
             if not os.path.exists(self.processed_dir):
-                raise ValueError(f"预处理数据目录 {self.processed_dir} 不存在，请先运行processed3.py")
-        
+                raise ValueError(f"Processed dir not found: {self.processed_dir}")
         if self.use_processed_final_train:
-            # self.processed_dir = os.path.join(root_dir, 'processed_65536', split)
-            self.processed_dir = os.path.join('/data/helian/affseg/processed_data/division_8192', split)
+            self.processed_dir = os.path.join(root_dir, 'processed_data', 'division_8192', split)
             if not os.path.exists(self.processed_dir):
-                raise ValueError(f"预处理数据目录 {self.processed_dir} 不存在")
+                raise ValueError(f"Processed dir not found: {self.processed_dir}")
             self.data_items = []
-            # 遍历所有visit_id/scan_id/desc_id目录，收集每个数据项
             for visit_id in os.listdir(self.processed_dir):
                 visit_path = os.path.join(self.processed_dir, visit_id)
                 if not os.path.isdir(visit_path):
@@ -147,7 +122,6 @@ class AffordanceDataset(Dataset):
                     desc_path = os.path.join(visit_path, desc_id)
                     if not os.path.isdir(desc_path):
                         continue
-                    # 检查六个文件是否都存在
                     files = [
                         "filtered_mask.npy",
                         "filtered_point_cloud.ply",
@@ -163,13 +137,9 @@ class AffordanceDataset(Dataset):
                                 "desc_id": desc_id,
                                 "base_path": desc_path,
                                 "description": desc_id
-                            })  
-        
+                            })
         if not (self.use_sam2 or self.use_sam2_1 or self.use_processed_final_train):
-            # 初始化数据集
             self.visit_ids = self.get_visit_id()
-            
-            # 构建数据索引：以description_id为主
             self.data_items = []
             for visit_id in self.visit_ids:
                 descriptions = self.get_descriptions(visit_id)
@@ -188,12 +158,10 @@ class AffordanceDataset(Dataset):
 
             data_item = self.data_items[idx]
             base_path = data_item['base_path']
-            # 读取点云
             pc_path = os.path.join(base_path, "filtered_point_cloud.ply")
             point_cloud = o3d.io.read_point_cloud(pc_path)
             points = torch.FloatTensor(np.asarray(point_cloud.points))
             colors = torch.FloatTensor(np.asarray(point_cloud.colors))
-            # 读取mask和json
             gt_mask_global = torch.FloatTensor(np.load(os.path.join(base_path, "gt_mask_global.npy")))
             gt_mask_local = torch.FloatTensor(np.load(os.path.join(base_path, "gt_mask_local.npy")))
             pred_mask_global = torch.FloatTensor(np.load(os.path.join(base_path, "pred_mask_global.npy")))
@@ -203,14 +171,11 @@ class AffordanceDataset(Dataset):
             
 
             return {
-                "c_pc_xyz": points, # 切块后的点云坐标
-                "c_pc_feat": colors, # 切块后的点云颜色
-                # "gt_mask_global": gt_mask_global, # gt的global mask
-                "gt_mask_local": gt_mask_local, # gt的local mask
-                # "pred_mask_global": pred_mask_global, # 预测的global mask
+                "c_pc_xyz": points,
+                "c_pc_feat": colors,
+                "gt_mask_local": gt_mask_local,
                 "pred_mask_local": pred_mask_local,
-                # "mask_result": mask_result,
-                'c_text': mask_result['desc_text'],     # 文本描述
+                'c_text': mask_result['desc_text'],
                 "c_visit_id": data_item["visit_id"],
                 "c_desc_id": data_item["desc_id"],
             }
@@ -236,13 +201,11 @@ class AffordanceDataset(Dataset):
             }
 
         if self.use_processed_data_3:
-            # 使用分割后的mask的新逻辑
             data_item = self.data_items[idx]
             visit_id = data_item['visit_id']
             desc_id = data_item['desc_id']
             description = data_item['description']
             
-            # 加载原始点云
             laser_scan_path = self.get_data_asset_path(
                 split=self.split,
                 data_asset_identifier="laser_scan_5mm",
@@ -252,30 +215,20 @@ class AffordanceDataset(Dataset):
             original_pcd = self.get_cropped_laser_scan(visit_id, laser_scan)
             original_points = torch.FloatTensor(np.asarray(original_pcd.points))
             original_colors = torch.FloatTensor(np.asarray(original_pcd.colors))
-
-            # 加载分割后的点云
             pc_path = os.path.join(self.processed_dir, f'{visit_id}/{desc_id}/filtered_point_cloud.ply')
             point_cloud = o3d.io.read_point_cloud(pc_path)
-            
-            # 加载分割后的mask
             mask_path = os.path.join(self.processed_dir, f'{visit_id}/{desc_id}/filtered_mask.npy')
             affordance_mask = np.load(mask_path)
-
-            # 加载gt_mask
             gt_mask_path = os.path.join(self.processed_dir, f'{visit_id}/{desc_id}/gt_mask.npy')
             gt_mask = np.load(gt_mask_path)
             gt_mask = torch.FloatTensor(gt_mask)
             if gt_mask.dim() == 1:
                 gt_mask = gt_mask.unsqueeze(1)
-
-            # 加载original_indices
             mask_json_path = os.path.join(self.processed_dir, f'{visit_id}/{desc_id}/mask_result.json')
             with open(mask_json_path, 'r') as f:
                 mask_result = json.load(f)
                 original_indices = mask_result['original_indices']
                 original_indices = torch.tensor(original_indices)
-            
-            # 转换为tensor
             points = torch.FloatTensor(np.asarray(point_cloud.points))
             colors = torch.FloatTensor(np.asarray(point_cloud.colors))
             mask = torch.FloatTensor(affordance_mask)
@@ -283,34 +236,27 @@ class AffordanceDataset(Dataset):
                 mask = mask.unsqueeze(1)
 
             return {
-                'pred_mask': mask,        # 预测标注
-                'gt_mask': gt_mask,       # gt的mask
-                'c_pc_xyz': points,        # 点云坐标
-                'c_pc_feat': colors,       # 点云颜色
-                'c_text': description,     # 文本描述
-                'c_visit_id': visit_id,    # 用于追踪个
-                'c_desc_id': desc_id,     # 用于追踪
+                'pred_mask': mask,
+                'gt_mask': gt_mask,
+                'c_pc_xyz': points,
+                'c_pc_feat': colors,
+                'c_text': description,
+                'c_visit_id': visit_id,
+                'c_desc_id': desc_id,
                 'c_original_pc_xyz': original_points,
                 'c_original_pc_feat': original_colors,
                 'original_indices': original_indices
             }
         
         elif self.use_division:
-            # 使用分割后的mask的新逻辑
             data_item = self.data_items[idx]
             visit_id = data_item['visit_id']
             desc_id = data_item['desc_id']
             description = data_item['description']
-            
-            # 加载分割后的点云
             pc_path = os.path.join(self.processed_dir, f'{visit_id}/{desc_id}/filtered_point_cloud.ply')
             point_cloud = o3d.io.read_point_cloud(pc_path)
-            
-            # 加载分割后的mask
             mask_path = os.path.join(self.processed_dir, f'{visit_id}/{desc_id}/filtered_mask.npy')
             affordance_mask = np.load(mask_path)
-            
-            # 转换为tensor
             points = torch.FloatTensor(np.asarray(point_cloud.points))
             colors = torch.FloatTensor(np.asarray(point_cloud.colors))
             mask = torch.FloatTensor(affordance_mask)
@@ -319,29 +265,24 @@ class AffordanceDataset(Dataset):
         
 
             return {
-                'x': mask,                 # affordance标注
-                'c_pc_xyz': points,        # 点云坐标
-                'c_pc_feat': colors,       # 点云颜色
-                'c_text': description,     # 文本描述
-                'c_visit_id': visit_id,    # 用于追踪个
-                'c_desc_id': desc_id       # 用于追踪
+                'x': mask,
+                'c_pc_xyz': points,
+                'c_pc_feat': colors,
+                'c_text': description,
+                'c_visit_id': visit_id,
+                'c_desc_id': desc_id
             }
         else:
-            # 原来的逻辑
             data_item = self.data_items[idx]
             visit_id = data_item['visit_id']
             desc_id = data_item['desc_id']
             description = data_item['description']
             if self.use_processed_data:
-                # 加载预处理后的点云
                 pc_path = os.path.join(self.processed_dir, 'point_clouds', f'{visit_id}.ply')
                 point_cloud = o3d.io.read_point_cloud(pc_path)
-                
-                # 加载预处理后的mask
                 mask_path = os.path.join(self.processed_dir, 'masks', f'{visit_id}_{desc_id}.npy')
                 affordance_mask = np.load(mask_path)
             else:
-                # 使用原始数据（保留原来的处理逻辑）
                 laser_scan_path = self.get_data_asset_path(
                     split=self.split,
                     data_asset_identifier="laser_scan_5mm",
@@ -351,22 +292,19 @@ class AffordanceDataset(Dataset):
                 point_cloud = self.get_cropped_laser_scan(visit_id, laser_scan)
                 affordance_mask = self.get_grouped_annotation(visit_id, desc_id)
             
-            # 转换为tensor
             points = torch.FloatTensor(np.asarray(point_cloud.points))
             colors = torch.FloatTensor(np.asarray(point_cloud.colors))
             mask = torch.FloatTensor(affordance_mask)
             if mask.dim() == 1:
                 mask = mask.unsqueeze(1)
-
             return {
-                'x': mask,                 # affordance标注
-                'c_pc_xyz': points,        # 点云坐标
-                'c_pc_feat': colors,       # 点云颜色
-                'c_text': description,     # 文本描述
-                'c_visit_id': visit_id,      # 用于追踪
-                'c_desc_id': desc_id         # 用于追踪
+                'x': mask,
+                'c_pc_xyz': points,
+                'c_pc_feat': colors,
+                'c_text': description,
+                'c_visit_id': visit_id,
+                'c_desc_id': desc_id
             }
-    # 获取所有visit_id,没有去重,没有排序
     def get_visit_id(self):
         with open(
             os.path.join(f"{self.root_dir}/raw_data/benchmark_file_lists/{self.split}_set.csv")
@@ -377,8 +315,6 @@ class AffordanceDataset(Dataset):
         for line in visit_video:
             visit_id = line.strip("\n").split(",")[0]
             visits.append(visit_id)
-
-        # 去重且保持顺序
         seen = set()
         unique_visits = []
         for vid in visits:
@@ -388,7 +324,6 @@ class AffordanceDataset(Dataset):
 
         return unique_visits
     
-    # 根据visit_id和video_id获取内部的数据路径
     def get_data_asset_path(self, split, data_asset_identifier, visit_id, video_id=None):
         assert (
             data_asset_identifier in data_asset_to_path
@@ -411,8 +346,7 @@ class AffordanceDataset(Dataset):
             data_path = data_path.replace("<video_id>", video_id)
 
         return data_path
-    
-    # 根据visit_id和video_id获取每个video_id的rgb帧,帧和帧的文件路径对应
+
     def get_rgb_frames(self, visit_id, video_id, data_asset_identifier="hires_wide"):
         frame_mapping = {}
         
@@ -451,8 +385,7 @@ class AffordanceDataset(Dataset):
         }
 
         return frame_mapping
-    
-    # 根据visit_id和video_id获取每个video_id的相机内参,返回帧时间戳和相机内参文件的路径
+
     def get_camera_intrinsics(self, visit_id, video_id, data_asset_identifier="hires_wide_intrinsics"):
         intrinsics_mapping = {}
         if data_asset_identifier == "hires_wide_intrinsics":
@@ -492,7 +425,6 @@ class AffordanceDataset(Dataset):
 
         return intrinsics_mapping
     
-    # 根据visit_id获取每个visit_id的分割掩码crop_mask,返回crop_mask的值或者crop_mask的索引
     def get_crop_mask(self, visit_id, return_indices=False):
         crop_mask_path = self.get_data_asset_path(
             data_asset_identifier="crop_mask",
@@ -510,7 +442,6 @@ class AffordanceDataset(Dataset):
         else:
             return crop_mask
 
-    # 根据visit_id及其对应的分割掩码crop_mask,返回分割后的点云
     def get_cropped_laser_scan(self, visit_id, laser_scan):
         filtered_idx_list = self.get_crop_mask(visit_id, return_indices=True)
 
@@ -525,7 +456,6 @@ class AffordanceDataset(Dataset):
 
         return cropped_laser_scan
         
-    # 根据visit_id获取每个visit_id的全部描述
     def get_descriptions(self, visit_id):
         descriptions_path = self.get_data_asset_path(
             split=self.split, data_asset_identifier="descriptions", visit_id=visit_id
@@ -534,14 +464,12 @@ class AffordanceDataset(Dataset):
             descriptions_data = json.load(f)["descriptions"]
 
         return descriptions_data
-    
-    # 根据visit_id获取每个visit_id的描述列表,返回值是 "desc_id" 和 description" 的键值对
+
     def get_descriptions_list(self, visit_id: str):
         descs = self.get_descriptions(visit_id)
         desc_ids = {desc["desc_id"]: desc["description"] for desc in descs}
         return desc_ids
-    
-    # 根据visit_id获取每个visit_id的全部功能注释,返回值是 "label" ， "indices" ，"label"
+
     def get_annotations(self, visit_id, group_excluded_points=True):
         annotations_path = self.get_data_asset_path(
             split=self.split, data_asset_identifier="annotations", visit_id=visit_id
@@ -573,15 +501,7 @@ class AffordanceDataset(Dataset):
 
         return annotations_data
     
-    # 根据visit_id和desc_id获取desc_id对应的grouped_annotation,返回值是完整的mask
     def get_grouped_annotation(self, visit_id: str, desc_id: str, point_mapping=None) -> np.ndarray:
-        """
-        获取分组后的标注，支持降采样
-        :param visit_id: 访问ID
-        :param desc_id: 描述ID
-        :param point_mapping: 点云降采样的映射关系
-        :return: 标注mask
-        """
         crop_mask = self.get_crop_mask(visit_id)
         full_mask = np.zeros(crop_mask.shape[0])
 
@@ -597,26 +517,17 @@ class AffordanceDataset(Dataset):
             if annot["annot_id"] in annot_list and annot["label"] != "exclude":
                 idxs = np.asarray(annot["indices"])
                 full_mask[idxs] = 1
-
-        # 应用crop_mask
         full_mask = full_mask[crop_mask == 1]
-        
-        # 如果提供了point_mapping，将标注映射到降采样后的点云
         if point_mapping is not None:
-            # 创建降采样后点云大小的新mask
             down_mask = np.zeros(len(np.unique(point_mapping)))
-            # 对每个降采样后的点，如果它对应的原始点中有任何一个被标注，就标注这个点
             for i in range(len(down_mask)):
-                # 找到映射到这个降采样点的所有原始点
                 original_points = np.where(point_mapping == i)[0]
-                # 如果这些原始点中有任何一个被标注，就标注这个降采样点
                 if np.any(full_mask[original_points]):
                     down_mask[i] = 1
             return down_mask
             
         return full_mask
-    
-    # 根据visit_id获取其对应的点云数据
+
     def get_pointcloud_data(self, visit_id):
         laser_scan_path = self.get_data_asset_path(
                 split=self.split,
@@ -626,7 +537,6 @@ class AffordanceDataset(Dataset):
         laser_scan = o3d.io.read_point_cloud(laser_scan_path)
         return laser_scan
 
-    # 根据visit_id及其对应的分割掩码crop_mask,返回分割后的点云,如果需要把新点云i点在原始点云的编号，可以查看filtered_idx_list[i]
     def get_cropped_laser_scan_and_id(self, visit_id, laser_scan):
         filtered_idx_list = self.get_crop_mask(visit_id, return_indices=True)
 
@@ -642,19 +552,9 @@ class AffordanceDataset(Dataset):
         return cropped_laser_scan, filtered_idx_list
     
 
-    # 根据visit_id和desc_id、annot_id,获取这个annot_id对应的mask
     def get_single_annot_mask(self, visit_id: str, desc_id: str, annot_id: str) -> np.ndarray:
-        """
-        获取分组后的标注，支持降采样
-        :param visit_id: 访问ID
-        :param desc_id: 描述ID
-        :param point_mapping: 点云降采样的映射关系
-        :return: 标注mask
-        """
-        crop_mask = self.get_crop_mask(visit_id)  # 原始点云的crop掩码
-        full_mask = np.zeros(crop_mask.shape[0], dtype=np.uint8)  # 原始点云长度
-
-        # 读取annotations
+        crop_mask = self.get_crop_mask(visit_id)
+        full_mask = np.zeros(crop_mask.shape[0], dtype=np.uint8)
         annots = self.get_annotations(visit_id, group_excluded_points=False)
         target_indices = None
         for annot in annots:
@@ -664,8 +564,6 @@ class AffordanceDataset(Dataset):
 
         if target_indices is not None:
             full_mask[np.asarray(target_indices, dtype=int)] = 1
-
-        # 应用crop_mask，得到分割后点云上的mask
         cropped_mask = full_mask[crop_mask == 1]
         return cropped_mask
         

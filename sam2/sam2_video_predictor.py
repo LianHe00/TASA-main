@@ -585,7 +585,6 @@ class SAM2VideoPredictor(SAM2Base):
         middle_processing_count = 0
         for frame_idx in tqdm(processing_order, desc="propagate in video"):
             pred_masks_per_obj = [None] * batch_size
-            # 计时
             if batch_size == 1 and frame_idx > 100:
                 start_time = time.time()
             for obj_idx in range(batch_size):

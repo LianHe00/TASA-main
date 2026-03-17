@@ -6,9 +6,7 @@ import torch
 import torchvision.transforms.functional as TF
 from tqdm import tqdm
 
-# CUDA_VISIBLE_DEVICES=6 python qwen_seg_image.py --data_root qwen2/point_clipwithaffordance_output --split val --size 540 540
-
-# 用GPU裁剪图片并保存
+# CUDA_VISIBLE_DEVICES=6 python qwen_seg_image.py --data_root path/to/point_clipwithaffordance_output --raw_data_root path/to/raw_data --split val --size 540 540
 
 def crop_image_gpu(image_path, center_x, center_y, width, height, output_dir, image_name_prefix=None, device='cuda'):
     image = Image.open(image_path).convert('RGB')
@@ -31,7 +29,6 @@ def crop_image_gpu(image_path, center_x, center_y, width, height, output_dir, im
     output_path = os.path.join(output_dir, f"{name}_crop{ext}")
     cropped_pil = TF.to_pil_image(cropped.cpu())
     cropped_pil.save(output_path)
-    # 保存映射信息
     meta = {
         "left": left,
         "upper": upper,
@@ -43,7 +40,6 @@ def crop_image_gpu(image_path, center_x, center_y, width, height, output_dir, im
     with open(meta_path, 'w') as f:
         import json
         json.dump(meta, f)
-    # 标记原图（在CPU上用Pillow画）
     marked_image = image.copy()
     draw = ImageDraw.Draw(marked_image)
     r = max(2, min(width, height) // 20)
@@ -52,9 +48,8 @@ def crop_image_gpu(image_path, center_x, center_y, width, height, output_dir, im
     marked_output_path = os.path.join(output_dir, f"{name}_marked{ext}")
     marked_image.save(marked_output_path)
 
-def process_all_images(data_root, split, width, height, output_root, device):
+def process_all_images(data_root, split, width, height, output_root, raw_data_root, device):
     split_dir = os.path.join(data_root, split)
-    # 先统计总任务数
     json_files = []
     for visit_id in os.listdir(split_dir):
         visit_path = os.path.join(split_dir, visit_id)
@@ -63,7 +58,6 @@ def process_all_images(data_root, split, width, height, output_root, device):
         for fname in os.listdir(visit_path):
             if fname.endswith('_point.json'):
                 json_files.append((visit_id, fname))
-    # 统计所有要处理的frame数
     total_frames = 0
     for visit_id, fname in json_files:
         video_id = fname.replace('_point.json', '')
@@ -75,8 +69,7 @@ def process_all_images(data_root, split, width, height, output_root, device):
             for frame in frame_results:
                 if frame.get('object_found', False) and frame.get('coordinates'):
                     total_frames += 1
-    # 正式处理，带进度条
-    pbar = tqdm(total=total_frames, desc='处理图片')
+    pbar = tqdm(total=total_frames, desc='Cropping images')
     for visit_id, fname in json_files:
         video_id = fname.replace('_point.json', '')
         json_path = os.path.join(split_dir, visit_id, fname)
@@ -93,29 +86,30 @@ def process_all_images(data_root, split, width, height, output_root, device):
                     continue
                 image_name = frame['image_name']
                 center_x, center_y = coordinates['x'], coordinates['y']
-                raw_img_path = f"/home/helian/code/affseg/data/raw_data/{split}/{visit_id}/{video_id}/hires_wide/{image_name}"
+                raw_img_path = os.path.join(raw_data_root, split, visit_id, video_id, "hires_wide", image_name)
                 out_dir = os.path.join(output_root, split, visit_id, video_id, desc_id)
                 image_prefix = f"frame{idx}"
                 try:
                     crop_image_gpu(raw_img_path, center_x, center_y, width, height, out_dir, image_name_prefix=image_prefix, device=device)
                 except Exception as e:
-                    print(f"处理图片失败: {raw_img_path}, 错误: {e}")
+                    print(f"Crop failed: {raw_img_path}, error: {e}")
                 pbar.update(1)
     pbar.close()
 
 def main():
-    parser = argparse.ArgumentParser(description="批量以指定点为中心裁剪图片区域（支持GPU加速）")
-    parser.add_argument('--data_root', type=str, required=True, help='数据根目录，如qwen2/point_clipwithaffordance_output')
-    parser.add_argument('--split', type=str, required=True, help='数据集划分，如train/val/test')
-    parser.add_argument('--size', type=int, nargs=2, required=True, metavar=('W', 'H'), help='裁剪区域宽高')
+    parser = argparse.ArgumentParser(description="Crop image regions centered at given points (GPU supported)")
+    parser.add_argument('--data_root', type=str, required=True, help='Path to point output, e.g. path/to/point_clipwithaffordance_output')
+    parser.add_argument('--raw_data_root', type=str, default='path/to/raw_data', help='Path to raw data (images)')
+    parser.add_argument('--split', type=str, required=True, help='Split: train/val/test')
+    parser.add_argument('--size', type=int, nargs=2, required=True, metavar=('W', 'H'), help='Crop width and height')
     args = parser.parse_args()
     data_root = args.data_root
     split = args.split
     width, height = args.size
-    output_root = os.path.join('seg_image', os.path.basename(data_root))
+    output_root = os.path.join('path/to/seg_image_output', os.path.basename(data_root))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"使用设备: {device}")
-    process_all_images(data_root, split, width, height, output_root, device)
+    print(f"Device: {device}")
+    process_all_images(data_root, split, width, height, output_root, args.raw_data_root, device)
 
 if __name__ == '__main__':
     main()

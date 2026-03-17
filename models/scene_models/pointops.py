@@ -38,7 +38,6 @@ class KNNQuery(Function):
         if new_xyz is None: new_xyz = xyz
         assert xyz.is_contiguous() and new_xyz.is_contiguous()
         m = new_xyz.shape[0]
-        # device = xyz.device  # 保持一致性
         # idx = torch.zeros((m, nsample), dtype=torch.int32, device=device)
         # dist2 = torch.zeros((m, nsample), dtype=torch.float32, device=device)
         idx = torch.cuda.IntTensor(m, nsample).zero_()
@@ -118,17 +117,15 @@ def queryandgroup(nsample, xyz, new_xyz, feat, idx, offset, new_offset, use_xyz=
     if new_xyz is None:
         new_xyz = xyz
     if idx is None:
-        idx, _ = knnquery(nsample, xyz, new_xyz, offset, new_offset) # (m, nsample)
+        idx, _ = knnquery(nsample, xyz, new_xyz, offset, new_offset)
 
     n, m, c = xyz.shape[0], new_xyz.shape[0], feat.shape[1]
-    grouped_xyz = xyz[idx.view(-1).long(), :].view(m, nsample, 3) # (m, nsample, 3)
-    #grouped_xyz = grouping(xyz, idx) # (m, nsample, 3)
-    grouped_xyz -= new_xyz.unsqueeze(1) # (m, nsample, 3)
-    grouped_feat = feat[idx.view(-1).long(), :].view(m, nsample, c) # (m, nsample, c)
-    #grouped_feat = grouping(feat, idx) # (m, nsample, c)
+    grouped_xyz = xyz[idx.view(-1).long(), :].view(m, nsample, 3)
+    grouped_xyz -= new_xyz.unsqueeze(1)
+    grouped_feat = feat[idx.view(-1).long(), :].view(m, nsample, c)
 
     if use_xyz:
-        return torch.cat((grouped_xyz, grouped_feat), -1) # (m, nsample, 3+c)
+        return torch.cat((grouped_xyz, grouped_feat), -1)
     else:
         return grouped_feat
 
@@ -200,10 +197,10 @@ def interpolation(xyz, new_xyz, feat, offset, new_offset, k=3):
     output: (n, c)
     """
     assert xyz.is_contiguous() and new_xyz.is_contiguous() and feat.is_contiguous()
-    idx, dist = knnquery(k, xyz, new_xyz, offset, new_offset) # (n, 3), (n, 3)
-    dist_recip = 1.0 / (dist + 1e-8) # (n, 3)
+    idx, dist = knnquery(k, xyz, new_xyz, offset, new_offset)
+    dist_recip = 1.0 / (dist + 1e-8)
     norm = torch.sum(dist_recip, dim=1, keepdim=True)
-    weight = dist_recip / norm # (n, 3)
+    weight = dist_recip / norm
 
     new_feat = torch.cuda.FloatTensor(new_xyz.shape[0], feat.shape[1]).zero_()
     for i in range(k):
@@ -219,10 +216,10 @@ class Interpolation(Function):
         output: (n, c)
         """
         assert xyz.is_contiguous() and new_xyz.is_contiguous() and input.is_contiguous()
-        idx, dist = knnquery(k, xyz, new_xyz, offset, new_offset) # (n, k), (n, k)
-        dist_recip = 1.0 / (dist + 1e-8) # (n, k)
+        idx, dist = knnquery(k, xyz, new_xyz, offset, new_offset)
+        dist_recip = 1.0 / (dist + 1e-8)
         norm = torch.sum(dist_recip, dim=1, keepdim=True)
-        weight = dist_recip / norm # (n, k)
+        weight = dist_recip / norm
 
         n, c, m = new_xyz.shape[0], input.shape[1], input.shape[0]
         output = torch.cuda.FloatTensor(n, c).zero_()

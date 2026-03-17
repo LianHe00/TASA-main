@@ -1,45 +1,30 @@
-# 点云mask润色训练配置文件
-
-# 数据配置
 data:
-  data_dir: "data/processed_65536"  # 数据目录
-  max_points: 65536  # 最大点数
-  normalize: true  # 是否归一化点云
+  data_dir: "path/to/processed_65536"
+  max_points: 65536
+  normalize: true
 
-# 模型配置
 model:
-  input_dim: 3  # 点云输入维度 (x, y, z)
-  hidden_dim: 256  # 隐藏层维度
-  num_layers: 4  # 融合网络层数
+  input_dim: 3
+  hidden_dim: 256
+  num_layers: 4
 
-# 训练配置
 training:
-  # 基础训练参数
-  lr: 0.001  # 学习率
-  max_epochs: 100  # 最大训练轮数
-  batch_size: 4  # 批次大小
-  num_workers: 4  # 数据加载线程数
-  
-  # 日志和保存
-  log_every_epoch: 1  # 日志记录频率（每N个epoch）
-  save_every_epoch: 5  # 模型保存频率（每N个epoch）
-  
-  # 优化器参数
-  weight_decay: 0.0001  # 权重衰减
-  lr_anneal_epochs: 80  # 学习率衰减轮数
-  
-  # 恢复训练
-  resume_ckpt: null  # 恢复训练的检查点路径
-  
-  # 损失函数权重
-  mask_loss_weight: 1.0  # mask损失权重
-  geometry_loss_weight: 0.1  # 几何一致性损失权重
-  boundary_loss_weight: 0.5  # 边界优化损失权重
-  smoothness_loss_weight: 0.1  # 平滑性损失权重
-  consistency_loss_weight: 0.2  # 一致性损失权重
+  lr: 0.001
+  max_epochs: 100
+  batch_size: 4
+  num_workers: 4
+  log_every_epoch: 1
+  save_every_epoch: 5
+  weight_decay: 0.0001
+  lr_anneal_epochs: 80
+  resume_ckpt: null
+  mask_loss_weight: 1.0
+  geometry_loss_weight: 0.1
+  boundary_loss_weight: 0.5
+  smoothness_loss_weight: 0.1
+  consistency_loss_weight: 0.2
 
-# 推理配置
 inference:
-  batch_size: 1  # 推理批次大小
-  threshold: 0.5  # mask阈值
-  post_process: true  # 是否进行后处理 
+  batch_size: 1
+  threshold: 0.5
+  post_process: true

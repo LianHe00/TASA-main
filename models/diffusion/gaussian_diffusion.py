@@ -1,10 +1,4 @@
 # This code is based on https://github.com/openai/guided-diffusion
-"""
-This code started out as a PyTorch port of Ho et al's diffusion models:
-https://github.com/hojonathanho/diffusion/blob/1e0dceb3b3495bbe19116a5e1b3596cd0706c543/diffusion_tf/diffusion_utils_2.py
-
-Docstrings have been added, as well as DDIM sampling and a new collection of beta schedules.
-"""
 
 import enum
 import math
@@ -15,7 +9,6 @@ import torch as th
 from models.diffusion.nn import mean_flat, sum_flat
 from models.diffusion.losses import normal_kl, discretized_gaussian_log_likelihood
 
-# 获取预定义的beta调度
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
     """
     Get a pre-defined beta schedule for the given name.
@@ -25,22 +18,14 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
     Beta schedules may be added, but should not be removed or changed once
     they are committed to maintain backwards compatibility.
     """
-    # 如果调度名称为linear，则使用线性调度
     if schedule_name == "linear":
-        # Linear schedule from Ho et al, extended to work for any number of
-        # diffusion steps.
-        # 计算缩放因子
         scale = 1000 / num_diffusion_timesteps
-        # 设置beta的开始和结束值
         beta_start = scale * 0.0001
         beta_end = scale * 0.02
-        # 返回线性分布的beta值
         return np.linspace(
             beta_start, beta_end, num_diffusion_timesteps, dtype=np.float64
         )
-    # 如果调度名称为cosine，则使用余弦调度
     elif schedule_name == "cosine":
-        # 返回余弦分布的beta值
         return betas_for_alpha_bar(
             num_diffusion_timesteps,
             lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,
@@ -48,7 +33,6 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
     else:
         raise NotImplementedError(f"unknown beta schedule: {schedule_name}")
 
-# 创建beta调度
 def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
     """
     Create a beta schedule that discretizes the given alpha_t_bar function,
@@ -61,19 +45,13 @@ def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
     :param max_beta: the maximum beta to use; use values lower than 1 to
                      prevent singularities.
     """
-    # 初始化beta列表
     betas = []
-    # 遍历每个时间步
     for i in range(num_diffusion_timesteps):
-        # 计算当前时间步的t1和t2
         t1 = i / num_diffusion_timesteps
         t2 = (i + 1) / num_diffusion_timesteps
-        # 计算beta值
         betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), max_beta))
-    # 返回beta列表
     return np.array(betas)
 
-# 定义模型输出类型
 class ModelMeanType(enum.Enum):
     """
     Which type of output the model predicts.

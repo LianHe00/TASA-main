@@ -245,12 +245,9 @@ def load_video_frames_from_jpg_images(
         for p in os.listdir(jpg_folder)
         if os.path.splitext(p)[-1] in [".jpg", ".jpeg", ".JPG", ".JPEG", ".png"]
     ]
-    # 修改排序逻辑以支持时间戳格式的文件名
     try:
-        # 尝试按数字排序（适用于 00001.jpg 格式）
         frame_names.sort(key=lambda p: int(os.path.splitext(p)[0]))
     except ValueError:
-        # 如果失败，尝试按时间戳排序（适用于 42444754_80982.174.jpg 格式）
         frame_names.sort(key=lambda p: float(os.path.splitext(p)[0].split('_')[1]))
     num_frames = len(frame_names)
     if num_frames == 0:

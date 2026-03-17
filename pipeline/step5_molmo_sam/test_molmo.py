@@ -9,8 +9,6 @@ import cv2
 from PIL import Image, ImageDraw, ImageFont
 from transformers import AutoModelForCausalLM, AutoProcessor, GenerationConfig, SamModel, SamProcessor
 
-# python test_molmo.py
-
 def init_sam_model(device: str):
     print("Loading SAM model...")
     start_time = time.time()
@@ -46,33 +44,33 @@ def init_molmo_model(device: str):
 def extract_points(molmo_output: str, size: tuple) -> np.array:
     image_w, image_h = size
     all_points = []
-    print(f"Molmo输出: {molmo_output}")
-    print(f"图像尺寸: {size}")
+    print(f"Molmo output: {molmo_output}")
+    print(f"Image size: {size}")
     for match in re.finditer(
         r'x\d*="\s*([0-9]+(?:\.[0-9]+)?)"\s+y\d*="\s*([0-9]+(?:\.[0-9]+)?)"',
         molmo_output,
     ):
         try:
             point = [float(match.group(i)) for i in range(1, 3)]
-            print(f"找到点: {point}")
+            print(f"Found point: {point}")
         except ValueError:
-            print(f"无法解析点: {match.groups()}")
+            print(f"Cannot parse point: {match.groups()}")
             pass
         else:
             point = np.array(point)
             if np.max(point) > 100:
-                print(f"点超出范围，跳过: {point}")
+                print(f"Point out of range, skip: {point}")
                 continue
             point /= 100.0
             point = point * np.array([image_w, image_h])
-            print(f"转换后点: {point}")
+            print(f"Transformed point: {point}")
             all_points.append(point)
     if len(all_points) > 0:
         points = np.stack(all_points, axis=0)
-        print(f"最终点坐标: {points}")
+        print(f"Final points: {points}")
     else:
         points = None
-        print("未找到有效点")
+        print("No valid points found")
     return points
 
 def process_sam_prompts(sam_model, sam_processor, img, points):
@@ -81,7 +79,7 @@ def process_sam_prompts(sam_model, sam_processor, img, points):
     try:
         input_points = points.tolist()
         input_labels = [[1] for _ in range(len(input_points))]
-        print(f"处理 {len(input_points)} 个点: {input_points}")
+        print(f"Processing {len(input_points)} point(s): {input_points}")
         inputs = sam_processor(
             img,
             input_points=input_points,
@@ -95,7 +93,7 @@ def process_sam_prompts(sam_model, sam_processor, img, points):
         with torch.no_grad():
             outputs = sam_model(**inputs)
     except Exception as e:
-        print(f"SAM模型推理失败: {e}")
+        print(f"SAM inference failed: {e}")
         return None, None
     masks = sam_processor.image_processor.post_process_masks(
         outputs.pred_masks.cpu(),
@@ -111,7 +109,7 @@ def process_sam_prompts(sam_model, sam_processor, img, points):
         masks = masks[idxs, top_scores_idxs]
         selected_scores = scores[idxs, top_scores_idxs]
     except Exception as e:
-        print(f"SAM掩码选择失败: {e}")
+        print(f"SAM mask selection failed: {e}")
         print(f"masks shape: {masks.shape}")
         print(f"scores shape: {scores.shape}")
         print(f"idxs shape: {idxs.shape}")
@@ -206,9 +204,9 @@ def save_mask_data(masks, points, output_path):
 def process_single_image(molmo_model, molmo_processor, sam_model, sam_processor,
                         image_path, prompt, output_dir, image_name, desc_id=None):
     if desc_id:
-        print(f"[{desc_id}] 处理图片: {image_name}")
+        print(f"[{desc_id}] Processing image: {image_name}")
     else:
-        print(f"处理图片: {image_name}")
+        print(f"Processing image: {image_name}")
     image = Image.open(image_path)
     image_size = image.size
     start_time = time.time()
@@ -233,26 +231,24 @@ def process_single_image(molmo_model, molmo_processor, sam_model, sam_processor,
             save_mask_data(masks, points, mask_data_path)
             mask_overlay_path = os.path.join(output_dir, f"{image_name}_mask_overlay.jpg")
             save_mask_overlay(image_path, masks, points, scores, mask_overlay_path)
-            print(f"  ✓ 成功 - Molmo: {molmo_time:.1f}s, SAM: {sam_time:.1f}s, 点: {len(points)}, 掩码: {len(masks)}")
+            print(f"  Success - Molmo: {molmo_time:.1f}s, SAM: {sam_time:.1f}s, points: {len(points)}, masks: {len(masks)}")
             if len(masks) > 0:
                 mask_area = np.sum(masks[0])
                 total_pixels = masks[0].shape[0] * masks[0].shape[1]
                 coverage = (mask_area / total_pixels) * 100
                 if scores is not None and len(scores) > 0:
                     confidence = scores[0].item() if hasattr(scores[0], 'item') else scores[0]
-                    print(f"    掩码覆盖: {coverage:.1f}%, 置信度: {confidence:.3f}")
+                    print(f"    Mask coverage: {coverage:.1f}%, confidence: {confidence:.3f}")
             return True
         else:
-            print(f"  ✗ SAM失败 - Molmo: {molmo_time:.1f}s")
+            print(f"  SAM failed - Molmo: {molmo_time:.1f}s")
             return False
     else:
-        print(f"  ✗ 无有效点 - Molmo: {molmo_time:.1f}s")
+        print(f"  No valid points - Molmo: {molmo_time:.1f}s")
         return False
 
 def find_crop_images(root_dir):
-    """递归查找所有_crop.jpg图片，返回(图片路径, split, visit_id, video_id, desc_id, 图片名)元组列表"""
     crop_images = []
-    # split为val或train
     split = os.path.basename(root_dir.rstrip('/'))
     for visit_id in os.listdir(root_dir):
         visit_path = os.path.join(root_dir, visit_id)
@@ -285,34 +281,26 @@ def get_affordance_info(split, visit_id, video_id, desc_id):
             if item.get('desc_id') == desc_id:
                 return item.get('affordance')
     except Exception as e:
-        print(f"读取affordance失败: {json_path}, {e}")
+        print(f"Failed to read affordance: {json_path}, {e}")
     return None
 
 def main():
-    # 输入根目录
-    root_dir = 'seg_image/point_clipwithaffordance_output/val'
-    output_root = 'molmo_output'  # 可自定义输出目录
+    root_dir = 'path/to/seg_image/point_clipwithaffordance_output/val'
+    output_root = 'path/to/molmo_output'
     os.makedirs(output_root, exist_ok=True)
-
-    # 初始化模型
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    print(f"使用设备: {device}")
+    print(f"Device: {device}")
     molmo_model, molmo_processor = init_molmo_model(device)
     sam_model, sam_processor = init_sam_model(device)
-
-    # 查找所有_crop.jpg图片
     crop_images = find_crop_images(root_dir)
-    print(f"共找到 {len(crop_images)} 张_crop.jpg图片")
-
+    print(f"Found {len(crop_images)} _crop.jpg image(s)")
     for idx, (img_path, split, visit_id, video_id, desc_id, fname) in enumerate(crop_images):
-        print(f"\n[{idx+1}/{len(crop_images)}] 处理: {img_path}")
-        # 动态获取prompt
+        print(f"\n[{idx+1}/{len(crop_images)}] Processing: {img_path}")
         affordance_info = get_affordance_info(split, visit_id, video_id, desc_id)
         if affordance_info and affordance_info.strip():
             prompt = f"point to {affordance_info}"
         else:
             prompt = "point to the affordance."
-        # 输出目录结构与输入一致
         out_dir = os.path.join(output_root, visit_id, video_id, desc_id)
         os.makedirs(out_dir, exist_ok=True)
         image_name = os.path.splitext(fname)[0]

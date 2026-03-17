@@ -111,7 +111,6 @@ class ContactPerceiver(nn.Module):
             text_feat_dim,
             self.encoder_q_input_channels,
             bias=True)
-        # 注释掉或删除time_embedding_adapter
         # self.time_embedding_adapter = nn.Linear(
         #     time_emb_dim,
         #     self.encoder_q_input_channels,
@@ -197,20 +196,15 @@ class ContactPointTrans(nn.Module):
 
         self.num_points = arch_cfg.num_points
 
-        self.c = contact_dim + point_feat_dim + 3 # 3 for xyz
-        block = PointTransformerBlock
+        self.c = contact_dim + point_feat_dim + 3        block = PointTransformerBlock
         blocks = arch_cfg.blocks
 
         self.in_planes, planes = self.c, [64, 128, 256, 512]
         fpn_planes, fpnhead_planes, share_planes = 128, 64, 8
         stride, nsample = [1, 4, 4, 4], [8, 16, 16, 16]
-        self.enc1 = self._make_enc(block, planes[0], blocks[0], share_planes, stride=stride[0], nsample=nsample[0])  # N/1
-        self.enc2 = self._make_enc(block, planes[1], blocks[1], share_planes, stride=stride[1], nsample=nsample[1])  # N/4
-        self.enc3 = self._make_enc(block, planes[2], blocks[2], share_planes, stride=stride[2], nsample=nsample[2])  # N/16
-        self.enc4 = self._make_enc(block, planes[3], blocks[3], share_planes, stride=stride[3], nsample=nsample[3])  # N/64
-
-        self.dec4 = self._make_dec(block, planes[3], 2, share_planes, nsample=nsample[3], is_head=True)  # transform p4
-        self.dec3 = self._make_dec(block, planes[2], 2, share_planes, nsample=nsample[2])  # fusion p4 and p3
+        self.enc1 = self._make_enc(block, planes[0], blocks[0], share_planes, stride=stride[0], nsample=nsample[0])        self.enc2 = self._make_enc(block, planes[1], blocks[1], share_planes, stride=stride[1], nsample=nsample[1])        self.enc3 = self._make_enc(block, planes[2], blocks[2], share_planes, stride=stride[2], nsample=nsample[2])6
+        self.enc4 = self._make_enc(block, planes[3], blocks[3], share_planes, stride=stride[3], nsample=nsample[3])
+        self.dec4 = self._make_dec(block, planes[3], 2, share_planes, nsample=nsample[3], is_head=True)        self.dec3 = self._make_dec(block, planes[2], 2, share_planes, nsample=nsample[2])  # fusion p4 and p3
         self.dec2 = self._make_dec(block, planes[1], 2, share_planes, nsample=nsample[1])  # fusion p3 and p2
         self.dec1 = self._make_dec(block, planes[0], 2, share_planes, nsample=nsample[0])  # fusion p2 and p1
 
@@ -296,20 +290,15 @@ class ContactPointTransV2(nn.Module):
 
         self.num_points = arch_cfg.num_points
 
-        self.c = contact_dim + point_feat_dim + 3 # 3 for xyz
-        block = PointTransformerBlock
+        self.c = contact_dim + point_feat_dim + 3        block = PointTransformerBlock
         blocks = arch_cfg.blocks
 
         self.in_planes, planes = self.c, [64, 128, 256, 512]
         fpn_planes, fpnhead_planes, share_planes = 128, 64, 8
         stride, nsample = [1, 4, 4, 4], [8, 16, 16, 16]
-        self.enc1 = self._make_enc(block, planes[0], blocks[0], share_planes, stride=stride[0], nsample=nsample[0])  # N/1
-        self.enc2 = self._make_enc(block, planes[1], blocks[1], share_planes, stride=stride[1], nsample=nsample[1])  # N/4
-        self.enc3 = self._make_enc(block, planes[2], blocks[2], share_planes, stride=stride[2], nsample=nsample[2])  # N/16
-        self.enc4 = self._make_enc(block, planes[3], blocks[3], share_planes, stride=stride[3], nsample=nsample[3])  # N/64
-
-        self.dec4 = self._make_dec(block, planes[3], 2, share_planes, nsample=nsample[3], is_head=True)  # transform p4
-        self.dec3 = self._make_dec(block, planes[2], 2, share_planes, nsample=nsample[2])  # fusion p4 and p3
+        self.enc1 = self._make_enc(block, planes[0], blocks[0], share_planes, stride=stride[0], nsample=nsample[0])        self.enc2 = self._make_enc(block, planes[1], blocks[1], share_planes, stride=stride[1], nsample=nsample[1])        self.enc3 = self._make_enc(block, planes[2], blocks[2], share_planes, stride=stride[2], nsample=nsample[2])6
+        self.enc4 = self._make_enc(block, planes[3], blocks[3], share_planes, stride=stride[3], nsample=nsample[3])
+        self.dec4 = self._make_dec(block, planes[3], 2, share_planes, nsample=nsample[3], is_head=True)        self.dec3 = self._make_dec(block, planes[2], 2, share_planes, nsample=nsample[2])  # fusion p4 and p3
         self.dec2 = self._make_dec(block, planes[1], 2, share_planes, nsample=nsample[1])  # fusion p3 and p2
         self.dec1 = self._make_dec(block, planes[0], 2, share_planes, nsample=nsample[0])  # fusion p2 and p1
 
@@ -476,8 +465,6 @@ class ContactPointTransV2(nn.Module):
 #         )
 
 #         self.contact_layer = nn.Linear(self.arch_cfg.last_dim, self.contact_dim, bias=True)
-        
-#         # 添加mask输出层，用于mask润色任务
 #         self.mask_output_layer = nn.Linear(self.contact_dim, 1, bias=True)
 
 #     # def forward(self, x, timesteps, **kwargs):
@@ -525,8 +512,7 @@ class ContactPointTransV2(nn.Module):
         
 #         return x
 
-#         # # 对于mask润色任务，输出logits（保持梯度流动）
-#         # mask_logits = self.mask_output_layer(x) # [bs, num_points, 1]
+# #         # mask_logits = self.mask_output_layer(x) # [bs, num_points, 1]
         
 #         # return mask_logits
 
@@ -563,13 +549,11 @@ class CDM(nn.Module):
         Returns:
             Output contact map, [bs, num_points, 1]
         """
-        # 仅用坐标
 
         x = self.scene_model((kwargs['c_pc_xyz'], x))
         x = self.contact_layer(x)
         return x
 
-        # # 对于mask润色任务，输出logits（保持梯度流动）
         # mask_logits = self.mask_output_layer(x) # [bs, num_points, 1]
         
         # return mask_logits
@@ -607,23 +591,16 @@ class CDM(nn.Module):
 #         Returns:
 #             Output contact map, [bs, num_points, 1]
 #         """
-
-#         # 确保x的维度正确
 #         if x.dim() == 2:
-#             x = x.unsqueeze(-1)  # [bs, num_points] -> [bs, num_points, 1]
-        
-#         # 直接拼接特征，保持各自原始维度
-#         pc_feat = kwargs['c_pc_feat']  # [bs, num_points, 3]
-#         # x: [bs, num_points, 1]
-#         # 拼接后: [bs, num_points, 4] (3+1=4)
+#             x = x.unsqueeze(-1)
+#         pc_feat = kwargs['c_pc_feat']
 #         combined_feat = torch.cat((pc_feat, x), dim=-1)
         
 #         x = self.scene_model((kwargs['c_pc_xyz'], combined_feat))
 #         x = self.contact_layer(x)
 #         return x
 
-#         # # 对于mask润色任务，输出logits（保持梯度流动）
-#         # mask_logits = self.mask_output_layer(x) # [bs, num_points, 1]
+# #         # mask_logits = self.mask_output_layer(x) # [bs, num_points, 1]
         
 #         # return mask_logits
 
@@ -677,16 +654,12 @@ class CDM(nn.Module):
 #             text_emb = encode_text_bert(self.tokenizer, self.text_model, kwargs['c_text'], max_length=self.text_max_length, s_feat=True, device=self.device)
 #         else:
 #             raise NotImplementedError
-#         text_emb = text_emb.unsqueeze(1).detach().float()  # [bs, 1, text_feat_dim]
-
-
-#         # 确保x的维度正确
+#         text_emb = text_emb.unsqueeze(1).detach().float()
 #         # combined_feat = torch.cat((kwargs['c_pc_xyz'],kwargs['c_pc_feat']), dim=-1)
 #         x = self.contact_model(x, kwargs['c_pc_feat'], text_emb, **kwargs)
 #         x = self.contact_layer(x)
 #         return x
 
-#         # # 对于mask润色任务，输出logits（保持梯度流动）
-#         # mask_logits = self.mask_output_layer(x) # [bs, num_points, 1]
+# #         # mask_logits = self.mask_output_layer(x) # [bs, num_points, 1]
         
 #         # return mask_logits

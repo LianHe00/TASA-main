@@ -86,7 +86,7 @@ def test(cfg: DictConfig) -> None:
         # prepare data
 
         x = data['pred_mask_local'].to(device)  # [B, N]
-        x = x.unsqueeze(-1)  # [B, N, 1] - 增加最后一维
+        x = x.unsqueeze(-1)  # [B, N, 1]
 
         x_kwargs = {}        
         for key in data:
@@ -99,7 +99,7 @@ def test(cfg: DictConfig) -> None:
         # gt_mask = data['gt_mask_local'].to(device)  # [B, N]
                     
         
-        # 模型前向传播
+        # Forward pass
         with torch.no_grad():
             pred_mask = model(x, **x_kwargs)  # [B, N, 1]
         pred_mask = pred_mask.squeeze(-1)  # [B, N]

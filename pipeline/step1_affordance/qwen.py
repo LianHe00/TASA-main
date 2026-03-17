@@ -7,15 +7,9 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from tqdm import tqdm
 
 class QwenAffordanceModel:
-    """
-    Qwen模型用于Affordance推理任务
-    """
+    """Qwen model for affordance inference."""
     def __init__(self, model_path='Qwen/Qwen2.5-7B-Instruct'):
-        """
-        初始化Qwen模型
-        Args:
-            model_path (str): 模型路径
-        """
+        """Initialize Qwen model. model_path: path to model."""
         self.model_path = model_path
         self.model = AutoModelForCausalLM.from_pretrained(
             model_path,
@@ -29,14 +23,7 @@ class QwenAffordanceModel:
 Your task is to identify the specific functional component (affordance) that a person would interact with to perform a given action, and output ONLY the name of the functional component.\n\nGiven a description of an action, provide ONLY the name of the functional component. Be concise and direct.\n\nExamples:\n- Action: \"Close the bedroom door\" → Affordance: handle\n- Action: \"Turn on the light\" → Affordance: switch\n- Action: \"Open the refrigerator\" → Affordance: handle\n- Action: \"Flush the toilet\" → Affordance: button\n- Action: \"Adjust the thermostat\" → Affordance: dial\n- Action: \"Lock the front door\" → Affordance: lock\n- Action: \"Open the window\" → Affordance: handle\n- Action: \"Start the washing machine\" → Affordance: button\n\nNow, analyze this action and identify the functional component:\n\nAction: \"{action_description}\"\n\nAffordance:"""
 
     def generate_response(self, prompt, max_new_tokens=256):
-        """
-        生成文本响应
-        Args:
-            prompt (str): 输入提示
-            max_new_tokens (int): 最大生成token数
-        Returns:
-            str: 模型响应
-        """
+        """Generate text response. Returns response string."""
         messages = [
             {
                 "role": "user",
@@ -60,13 +47,7 @@ Your task is to identify the specific functional component (affordance) that a p
         return output_text[0]
 
     def infer_affordance(self, action_description):
-        """
-        根据动作描述推理出功能部件(Affordance)
-        Args:
-            action_description (str): 动作描述
-        Returns:
-            dict: 包含推理结果的结果字典
-        """
+        """Infer affordance from action description. Returns dict with description and affordance."""
         try:
             prompt = self.AFFORDANCE_PROMPT.format(action_description=action_description)
             response = self.generate_response(prompt)
@@ -75,8 +56,6 @@ Your task is to identify the specific functional component (affordance) that a p
                 affordance = affordance.split("Affordance:")[-1].strip()
             affordance = affordance.replace('"', '').replace("'", '').replace('\n', ' ').replace('\r', ' ')
             affordance = ' '.join(affordance.split())
-            
-            # 后处理：提取功能部件名称，去除"of object"部分
             if ' of ' in affordance:
                 affordance = affordance.split(' of ')[0].strip()
             
@@ -93,14 +72,7 @@ Your task is to identify the specific functional component (affordance) that a p
             }
 
     def process_description_file(self, desc_file_path, visit_id):
-        """
-        处理单个描述文件
-        Args:
-            desc_file_path (str): 描述文件路径
-            visit_id (str): visit_id
-        Returns:
-            list: 处理结果列表
-        """
+        """Process a single description file. Returns list of results."""
         results = []
         try:
             with open(desc_file_path, 'r', encoding='utf-8') as f:
@@ -123,68 +95,52 @@ Your task is to identify the specific functional component (affordance) that a p
         return results
 
 def process_affordance_inference(data_root, split, model_path='Qwen/Qwen2.5-7B-Instruct'):
-    """
-    处理affordance推理的主函数
-    Args:
-        data_root (str): 数据根目录路径
-        split (str): 数据集分割类型 ('train', 'val', 'test')
-        model_path (str): 模型路径
-    """
-    print(f"开始处理affordance推理...")
-    print(f"数据根目录: {data_root}")
-    print(f"数据集分割: {split}")
-    print(f"模型路径: {model_path}")
-    print("正在加载Qwen模型...")
+    """Main affordance inference. data_root: data root path, split: train/val/test, model_path: Qwen model path."""
+    print("Starting affordance inference...")
+    print(f"Data root: {data_root}, split: {split}, model: {model_path}")
+    print("Loading Qwen model...")
     model = QwenAffordanceModel(model_path)
-    print("模型加载完成")
+    print("Model loaded.")
     benchmark_dir = os.path.join(data_root, "benchmark_file_lists")
     split_file = os.path.join(benchmark_dir, f"{split}_set.csv")
     if not os.path.exists(split_file):
-        print(f"错误: 找不到分割文件 {split_file}")
+        print(f"Error: split file not found {split_file}")
         return
-    print(f"读取分割文件: {split_file}")
+    print(f"Reading split file: {split_file}")
     df = pd.read_csv(split_file)
-    print(f"找到 {len(df)} 个场景")
+    print(f"Scenes: {len(df)}")
     df['visit_id'] = df['visit_id'].astype(str)
     df_single = df.drop_duplicates(subset=['visit_id'], keep='first')
-    print(f"去重后剩余 {len(df_single)} 个唯一visit_id")
+    print(f"Unique visit_id: {len(df_single)}")
     output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'affordance_result', split)
     os.makedirs(output_dir, exist_ok=True)
     all_results = []
-    for index, row in tqdm(df_single.iterrows(), total=len(df_single), desc='处理visit_id进度'):
+    for index, row in tqdm(df_single.iterrows(), total=len(df_single), desc='visit_id'):
         visit_id = row['visit_id']
         desc_file_path = os.path.join(data_root, split, visit_id, f"{visit_id}_descriptions.json")
         if os.path.exists(desc_file_path):
-            print(f"\n处理 visit_id: {visit_id}")
+            print(f"\nProcessing visit_id: {visit_id}")
             results = model.process_description_file(desc_file_path, visit_id)
             output_file_path = os.path.join(output_dir, f"{visit_id}_affordance.json")
             with open(output_file_path, 'w', encoding='utf-8') as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
-            print(f"结果已保存到: {output_file_path}")
+            print(f"Saved to {output_file_path}")
             all_results.extend(results)
         else:
-            print(f"警告: 描述文件不存在 {desc_file_path}")
-    print(f"\n处理完成！")
-    print(f"总共处理了 {len(all_results)} 个描述")
-    print(f"结果文件保存在: {output_dir}")
+            print(f"Warning: description file not found {desc_file_path}")
+    print(f"\nDone. Processed {len(all_results)} description(s). Results: {output_dir}")
 
 def main():
-    """
-    主函数，只支持affordance推理模式
-    """
-    parser = argparse.ArgumentParser(description='使用Qwen模型进行Affordance推理')
-    parser.add_argument('--mode', type=str, choices=['affordance'], required=True,
-                       help='运行模式: 仅支持affordance(推理功能部件)')
-    parser.add_argument('--model_path', type=str, default='Qwen/Qwen2.5-7B-Instruct',
-                       help='Qwen模型路径 (默认: Qwen/Qwen2.5-7B-Instruct)')
-    parser.add_argument('--data_root', type=str, required=True,
-                       help='数据根目录路径 (affordance模式需要)')
-    parser.add_argument('--split', type=str, choices=['train', 'val', 'test'], required=True,
-                       help='数据集分割类型 (affordance模式需要)')
+    """Main entry; only affordance mode is supported."""
+    parser = argparse.ArgumentParser(description='Qwen affordance inference')
+    parser.add_argument('--mode', type=str, choices=['affordance'], required=True, help='Mode: affordance')
+    parser.add_argument('--model_path', type=str, default='Qwen/Qwen2.5-7B-Instruct', help='Qwen model path')
+    parser.add_argument('--data_root', type=str, required=True, help='Data root path')
+    parser.add_argument('--split', type=str, choices=['train', 'val', 'test'], required=True, help='Dataset split')
     args = parser.parse_args()
     if args.mode == 'affordance':
         process_affordance_inference(args.data_root, args.split, args.model_path)
 
-#推理模式：python qwen/qwen.py --mode affordance --data_root data/raw_data --split val
+# Example: python qwen.py --mode affordance --data_root path/to/raw_data --split val
 if __name__ == '__main__':
     main()

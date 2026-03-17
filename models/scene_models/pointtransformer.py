@@ -1,5 +1,4 @@
 import os, sys
-# sys.path.append(os.path.abspath('.'))
 import torch
 import torch.nn as nn
 
@@ -24,30 +23,17 @@ class PointTransformerLayer(nn.Module):
         self.softmax = nn.Softmax(dim=1)
         
     def forward(self, pxo) -> torch.Tensor:
-        p, x, o = pxo  # (n, 3), (n, c), (b)
-        x_q, x_k, x_v = self.linear_q(x), self.linear_k(x), self.linear_v(x)  # (n, c)
-        
-        #  对于每个点p_i：
-        # 1. 找到最近的nsample个邻居点
-        # 2. 收集这些邻居点的特征
-        # 3. 如果use_xyz=True：
-        #    - 计算邻居点相对于中心点的相对坐标
-        #    - 将相对坐标和特征拼接
-        # 4. 返回收集到的信息
-        x_k = pointops.queryandgroup(self.nsample, p, p, x_k, None, o, o, use_xyz=True)  # (n, nsample, 3+c)
-        x_v = pointops.queryandgroup(self.nsample, p, p, x_v, None, o, o, use_xyz=False)  # (n, nsample, c)
-        
+        p, x, o = pxo
+        x_q, x_k, x_v = self.linear_q(x), self.linear_k(x), self.linear_v(x)
+        x_k = pointops.queryandgroup(self.nsample, p, p, x_k, None, o, o, use_xyz=True)
+        x_v = pointops.queryandgroup(self.nsample, p, p, x_v, None, o, o, use_xyz=False)
         p_r, x_k = x_k[:, :, 0:3], x_k[:, :, 3:]
-
-        # 处理相对位置信息
-        for i, layer in enumerate(self.linear_p): 
-            p_r = layer(p_r.transpose(1, 2).contiguous()).transpose(1, 2).contiguous() if i == 1 else layer(p_r)    # (n, nsample, c)
-       
-        # 特征差异（x_k - x_q）：计算邻居点和中心点的特征差异，类似于传统注意力机制中的Q·K操作。最后加上位置信息
-        w = x_k - x_q.unsqueeze(1) + p_r.view(p_r.shape[0], p_r.shape[1], self.out_planes // self.mid_planes, self.mid_planes).sum(2)  # (n, nsample, c)
+        for i, layer in enumerate(self.linear_p):
+            p_r = layer(p_r.transpose(1, 2).contiguous()).transpose(1, 2).contiguous() if i == 1 else layer(p_r)
+        w = x_k - x_q.unsqueeze(1) + p_r.view(p_r.shape[0], p_r.shape[1], self.out_planes // self.mid_planes, self.mid_planes).sum(2)
         for i, layer in enumerate(self.linear_w): 
             w = layer(w.transpose(1, 2).contiguous()).transpose(1, 2).contiguous() if i % 3 == 0 else layer(w)
-        w = self.softmax(w)  # (n, nsample, c)
+        w = self.softmax(w)
         n, nsample, c = x_v.shape; s = self.share_planes
         x = ((x_v + p_r).view(n, nsample, s, c // s) * w.unsqueeze(2)).sum(1).view(n, c)
         return x
@@ -66,21 +52,21 @@ class TransitionDown(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         
     def forward(self, pxo):
-        p, x, o = pxo  # (n, 3), (n, c), (b)
+        p, x, o = pxo
         if self.stride != 1:
             n_o, count = [o[0].item() // self.stride], o[0].item() // self.stride
             for i in range(1, o.shape[0]):
                 count += (o[i].item() - o[i-1].item()) // self.stride
                 n_o.append(count)
             n_o = torch.cuda.IntTensor(n_o)
-            idx = pointops.furthestsampling(p, o, n_o)  # (m)
-            n_p = p[idx.long(), :]  # (m, 3)
-            x = pointops.queryandgroup(self.nsample, p, n_p, x, None, o, n_o, use_xyz=True)  # (m, 3+c, nsample)
-            x = self.relu(self.bn(self.linear(x).transpose(1, 2).contiguous()))  # (m, c, nsample)
-            x = self.pool(x).squeeze(-1)  # (m, c)
+            idx = pointops.furthestsampling(p, o, n_o)
+            n_p = p[idx.long(), :]
+            x = pointops.queryandgroup(self.nsample, p, n_p, x, None, o, n_o, use_xyz=True)
+            x = self.relu(self.bn(self.linear(x).transpose(1, 2).contiguous()))
+            x = self.pool(x).squeeze(-1)
             p, o = n_p, n_o
         else:
-            x = self.relu(self.bn(self.linear(x)))  # (n, c)
+            x = self.relu(self.bn(self.linear(x)))
         return [p, x, o]
 
 
@@ -96,7 +82,7 @@ class TransitionUp(nn.Module):
         
     def forward(self, pxo1, pxo2=None):
         if pxo2 is None:
-            _, x, o = pxo1  # (n, 3), (n, c), (b)
+            _, x, o = pxo1
             x_tmp = []
             for i in range(o.shape[0]):
                 if i == 0:
@@ -128,7 +114,7 @@ class PointTransformerBlock(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, pxo):
-        p, x, o = pxo  # (n, 3), (n, c), (b)
+        p, x, o = pxo
         identity = x
         x = self.relu(self.bn1(self.linear1(x)))
         x = self.relu(self.bn2(self.transformer2([p, x, o])))
@@ -142,23 +128,20 @@ class PointTransformerSeg(nn.Module):
     def __init__(self, block, blocks, c=6, num_points=8192):
         super().__init__()
         self.num_points = num_points
-        self.c = c   # 输入的特征维度，例如[x, y, z]+[r, g, b]
-        self.in_planes, planes = c, [32, 64, 128, 256, 512]  # 输入的特征维度，以及每个阶段的特征维度
-        # FPN(特征金字塔)的相关参数
+        self.c = c
+        self.in_planes, planes = c, [32, 64, 128, 256, 512]
         fpn_planes, fpnhead_planes, share_planes = 128, 64, 8
-        # 每个阶段的下采样倍数(n, n/4, n/16, n/64, n/256)，以及每个阶段的采样点数(8, 16, 16, 16, 16)
         stride, nsample = [1, 4, 4, 4, 4], [8, 16, 16, 16, 16]
-        self.enc1 = self._make_enc(block, planes[0], blocks[0], share_planes, stride=stride[0], nsample=nsample[0])  # N/1
-        self.enc2 = self._make_enc(block, planes[1], blocks[1], share_planes, stride=stride[1], nsample=nsample[1])  # N/4
-        self.enc3 = self._make_enc(block, planes[2], blocks[2], share_planes, stride=stride[2], nsample=nsample[2])  # N/16
-        self.enc4 = self._make_enc(block, planes[3], blocks[3], share_planes, stride=stride[3], nsample=nsample[3])  # N/64
-        self.enc5 = self._make_enc(block, planes[4], blocks[4], share_planes, stride=stride[4], nsample=nsample[4])  # N/256
-        self.dec5 = self._make_dec(block, planes[4], 2, share_planes, nsample=nsample[4], is_head=True)  # transform p5
-        self.dec4 = self._make_dec(block, planes[3], 2, share_planes, nsample=nsample[3])  # fusion p5 and p4
-        self.dec3 = self._make_dec(block, planes[2], 2, share_planes, nsample=nsample[2])  # fusion p4 and p3
-        self.dec2 = self._make_dec(block, planes[1], 2, share_planes, nsample=nsample[1])  # fusion p3 and p2
-        self.dec1 = self._make_dec(block, planes[0], 2, share_planes, nsample=nsample[0])  # fusion p2 and p1
-        # self.cls = nn.Sequential(nn.Linear(planes[0], planes[0]), nn.BatchNorm1d(planes[0]), nn.ReLU(inplace=True), nn.Linear(planes[0], k))
+        self.enc1 = self._make_enc(block, planes[0], blocks[0], share_planes, stride=stride[0], nsample=nsample[0])
+        self.enc2 = self._make_enc(block, planes[1], blocks[1], share_planes, stride=stride[1], nsample=nsample[1])
+        self.enc3 = self._make_enc(block, planes[2], blocks[2], share_planes, stride=stride[2], nsample=nsample[2])
+        self.enc4 = self._make_enc(block, planes[3], blocks[3], share_planes, stride=stride[3], nsample=nsample[3])
+        self.enc5 = self._make_enc(block, planes[4], blocks[4], share_planes, stride=stride[4], nsample=nsample[4])
+        self.dec5 = self._make_dec(block, planes[4], 2, share_planes, nsample=nsample[4], is_head=True)
+        self.dec4 = self._make_dec(block, planes[3], 2, share_planes, nsample=nsample[3])
+        self.dec3 = self._make_dec(block, planes[2], 2, share_planes, nsample=nsample[2])
+        self.dec2 = self._make_dec(block, planes[1], 2, share_planes, nsample=nsample[1])
+        self.dec1 = self._make_dec(block, planes[0], 2, share_planes, nsample=nsample[0])
 
     @property
     def num_groups(self):
@@ -168,7 +151,6 @@ class PointTransformerSeg(nn.Module):
         layers = []
         layers.append(TransitionDown(self.in_planes, planes * block.expansion, stride, nsample))
         self.in_planes = planes * block.expansion
-        # blocks代表PointTransformerBlock叠了多少层
         for _ in range(1, blocks):
             layers.append(block(self.in_planes, self.in_planes, share_planes, nsample=nsample))
         return nn.Sequential(*layers)
@@ -182,17 +164,10 @@ class PointTransformerSeg(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, pxo):
-        # 输入的格式为(p, x, o)或(p, x)
-        # 其中p为点云的坐标，x为点云的特征，o为点云的索引
-        # 例如：batch中有3个点云，每个点云有100个点
-        # offset = [100, 200, 300]
-        # - 第1个点云的点索引: 0:100
-        # - 第2个点云的点索引: 100:200
-        # - 第3个点云的点索引: 200:300
         if len(pxo) == 3:
-            p0, x0, o0 = pxo # (n, 3), (n, c), (b)
+            p0, x0, o0 = pxo
         elif len(pxo) == 2:
-            p, x = pxo # (b, n, 3), (b, n, c)
+            p, x = pxo
 
             offset, count = [], 0
             for item in p:
@@ -204,8 +179,6 @@ class PointTransformerSeg(nn.Module):
             o0 = torch.IntTensor(offset).to(p0.device)
         else:
             raise ValueError('Input must be (p, x, o) or (p, x)')
-        
-        # x0 = p0 if self.c == 3 else torch.cat((p0, x0), 1)
         p1, x1, o1 = self.enc1([p0, x0, o0])
         p2, x2, o2 = self.enc2([p1, x1, o1])
         p3, x3, o3 = self.enc3([p2, x2, o2])
@@ -216,12 +189,11 @@ class PointTransformerSeg(nn.Module):
         x3 = self.dec3[1:]([p3, self.dec3[0]([p3, x3, o3], [p4, x4, o4]), o3])[1]
         x2 = self.dec2[1:]([p2, self.dec2[0]([p2, x2, o2], [p3, x3, o3]), o2])[1]
         x1 = self.dec1[1:]([p1, self.dec1[0]([p1, x1, o1], [p2, x2, o2]), o1])[1]
-        # x = self.cls(x1)
 
         if len(pxo) == 3:
-            return x1 # (b * n, planes[0])
+            return x1
         elif len(pxo) == 2:
-            return rearrange(x1, '(b n) d -> b n d', b=len(offset), n=offset[0]) # (b, n, planes[0])
+            return rearrange(x1, '(b n) d -> b n d', b=len(offset), n=offset[0])
         else:
             raise ValueError('Input must be (p, x, o) or (p, x)')
     
@@ -237,7 +209,6 @@ class PointTransformerSeg(nn.Module):
         
         self.load_state_dict(static_dict)
 
-## Modified from the above PointTransformerSeg
 class PointTransformerEnc(nn.Module):
     def __init__(self, block, blocks, c=6, num_points=8192):
         super().__init__()
@@ -246,11 +217,11 @@ class PointTransformerEnc(nn.Module):
         self.in_planes, planes = c, [32, 64, 128, 256, 512]
         fpn_planes, fpnhead_planes, share_planes = 128, 64, 8
         stride, nsample = [1, 4, 4, 4, 4], [8, 16, 16, 16, 16]
-        self.enc1 = self._make_enc(block, planes[0], blocks[0], share_planes, stride=stride[0], nsample=nsample[0])  # N/1
-        self.enc2 = self._make_enc(block, planes[1], blocks[1], share_planes, stride=stride[1], nsample=nsample[1])  # N/4
-        self.enc3 = self._make_enc(block, planes[2], blocks[2], share_planes, stride=stride[2], nsample=nsample[2])  # N/16
-        self.enc4 = self._make_enc(block, planes[3], blocks[3], share_planes, stride=stride[3], nsample=nsample[3])  # N/64
-        self.enc5 = self._make_enc(block, planes[4], blocks[4], share_planes, stride=stride[4], nsample=nsample[4])  # N/256
+        self.enc1 = self._make_enc(block, planes[0], blocks[0], share_planes, stride=stride[0], nsample=nsample[0])
+        self.enc2 = self._make_enc(block, planes[1], blocks[1], share_planes, stride=stride[1], nsample=nsample[1])
+        self.enc3 = self._make_enc(block, planes[2], blocks[2], share_planes, stride=stride[2], nsample=nsample[2])
+        self.enc4 = self._make_enc(block, planes[3], blocks[3], share_planes, stride=stride[3], nsample=nsample[3])
+        self.enc5 = self._make_enc(block, planes[4], blocks[4], share_planes, stride=stride[4], nsample=nsample[4])
 
     @property
     def num_groups(self):
@@ -266,9 +237,9 @@ class PointTransformerEnc(nn.Module):
 
     def forward(self, pxo):
         if len(pxo) == 3:
-            p0, x0, o0 = pxo # (n, 3), (n, c), (b)
+            p0, x0, o0 = pxo
         elif len(pxo) == 2:
-            p, x = pxo # (b, n, 3), (b, n, c)
+            p, x = pxo
 
             offset, count = [], 0
             for item in p:
@@ -289,7 +260,7 @@ class PointTransformerEnc(nn.Module):
         p5, x5, o5 = self.enc5([p4, x4, o4])
 
         if len(pxo) == 3:
-            return p5, x5, o5 # (b * n // 256, planes[-1])
+            return p5, x5, o5
         elif len(pxo) == 2:
             return rearrange(p5, '(b n) d -> b n d', b=len(offset)), rearrange(x5, '(b n) d -> b n d', b=len(offset))
         else:
@@ -319,7 +290,6 @@ if __name__ == '__main__':
     enc_model = pointtransformer_enc_repro(c=6).cuda()
     seg_model = pointtransformer_seg_repro(c=6).cuda()
 
-    ## pxo as input
     n = 8192
     p = torch.rand(8 * n, 3).cuda()
     x = torch.rand(8 * n, 3).cuda()
@@ -331,9 +301,8 @@ if __name__ == '__main__':
     import pdb
     pdb.set_trace()
 
-    print(enc_x.shape, seg_x.shape) # (b * n // 256, planes[-1]), (b * n, planes[0])
+    print(enc_x.shape, seg_x.shape)
 
-    ## px as input
     n = 8192
     p = torch.rand(8, n, 3).cuda()
     x = torch.rand(8, n, 3).cuda()
