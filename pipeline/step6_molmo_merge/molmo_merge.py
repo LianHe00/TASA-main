@@ -4,8 +4,6 @@ import json
 from PIL import Image
 from tqdm import tqdm
 
-# python test_molmo_merge.py
-
 MOLMO_ROOT = 'path/to/molmo_output'
 CROPINFO_ROOT = 'path/to/seg_image/point_clipwithaffordance_output/val'
 BIGIMG_ROOT = 'path/to/raw_data/val'
@@ -13,7 +11,6 @@ MERGE_ROOT = 'path/to/molmo_merge'
 
 
 def merge_mask_to_bigimg(molmo_mask, crop_info, bigimg_shape):
-    """Map crop mask back to full image. Returns mask of shape bigimg_shape."""
     mask_big = np.zeros(bigimg_shape, dtype=molmo_mask.dtype)
     l, u, w, h = crop_info['left'], crop_info['upper'], crop_info['width'], crop_info['height']
     if molmo_mask.shape != (h, w):

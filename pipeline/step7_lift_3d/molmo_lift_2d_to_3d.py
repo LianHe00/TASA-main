@@ -9,11 +9,7 @@ from scenefun3d_utils.data_parser import DataParser
 from scenefun3d_utils.fusion_util import PointCloudToImageMapper
 from tqdm import tqdm
 
-# python test_molmo_lift_2d_to_3d.py --data_root data --split val
-
 def process_one_molmo_mask(npz_path, data_root, split, visit_id, video_id, desc_id, all_results, output_dir=None):
-    """Process a single Molmo mask file: lift 2D to 3D and append to all_results."""
-
     laser_scan_path = os.path.join(data_root, "raw_data", split, visit_id, f"{visit_id}_laser_scan.ply")
     traj_path = os.path.join(data_root, "raw_data", split, visit_id, video_id, "hires_poses.traj")
 
@@ -112,7 +108,6 @@ def process_one_molmo_mask(npz_path, data_root, split, visit_id, video_id, desc_
         print(f"No suitable camera pose for frame_id: {frame_id}")
         return
 
-    # Process each mask
     if torch.cuda.is_available():
         proc_pcd = torch.tensor(points).cuda()
         device = "cuda"
@@ -202,8 +197,6 @@ def process_one_molmo_mask(npz_path, data_root, split, visit_id, video_id, desc_
 
 
 def process_desc_directory(desc_dir, data_root, split, visit_id, video_id, desc_id, all_results, output_dir=None):
-    """Process all npz files under a desc directory."""
-
     if not os.path.exists(desc_dir):
         print(f"Warning: desc dir not found: {desc_dir}")
         return

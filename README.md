@@ -1,3 +1,5 @@
+## [AAAI 2026]Task-Aware 3D Affordance Segmentation via 2D Guidance and Geometric Refinement
+
 ## Environment Setup
 
 Python 3.10+ and a virtual environment (conda or venv) are recommended.
@@ -51,7 +53,7 @@ Output includes target object categories and affordance labels (e.g. door handle
 - Use CLIP to select the top-K frames most relevant to the affordance:
 
 ```bash
-python pipeline/step2_clipwithaffordance/test_clip4_affordance.py \
+python pipeline/step2_clipwithaffordance/clip_affordance.py \
   --frames_dir path/to/frames \
   --affordance_json path/to/affordance.json \
   --output path/to/topk_frames.json
@@ -60,7 +62,7 @@ python pipeline/step2_clipwithaffordance/test_clip4_affordance.py \
 - Use Qwen-VL to predict operation points on those frames:
 
 ```bash
-python pipeline/step3_point_prediction/test_qwen_point.py \
+python pipeline/step3_point_prediction/qwen_point.py \
   --frames path/to/topk_frames.json \
   --output path/to/points.json
 ```
@@ -69,13 +71,13 @@ python pipeline/step3_point_prediction/test_qwen_point.py \
 
 ```bash
 # Segment with Molmo + SAM / SAM2
-python pipeline/step5_molmo_sam/test_molmo.py \
+python pipeline/step5_molmo_sam/molmo_sam.py \
   --frames path/to/topk_frames.json \
   --points path/to/points.json \
   --output path/to/2d_masks
 
 # Merge local masks back to full image coordinates
-python pipeline/step6_molmo_merge/test_molmo_merge.py \
+python pipeline/step6_molmo_merge/molmo_merge.py \
   --masks_dir path/to/2d_masks \
   --output path/to/merged_masks
 ```
@@ -83,7 +85,7 @@ python pipeline/step6_molmo_merge/test_molmo_merge.py \
 ### 4. 2D→3D lifting & point cloud extraction
 
 ```bash
-python pipeline/step7_lift_3d/test_molmo_lift_2d_to_3d.py \
+python pipeline/step7_lift_3d/molmo_lift_2d_to_3d.py \
   --config path/to/lift_config.yaml \
   --masks path/to/merged_masks \
   --output path/to/3d_masks_and_pcd
@@ -121,7 +123,7 @@ Training uses `AffordanceDataset` to load 3D neighborhood point clouds and 3D ma
 - **Evaluation**
 
 ```bash
-python pipeline/step8_3d_training/test_no_diff.py \
+python pipeline/step8_3d_training/eval_no_diff.py \
   exp_dir=outputs/<your-exp-dir> \
   gpu=0
 ```
@@ -157,14 +159,21 @@ You can override options (e.g. use color, load text, point count, batch size) vi
 
 ---
 
-## License
+## Citation
 
-Add your chosen license here, for example:
+If you find this work helpful, please cite:
 
 ```text
-MIT License
-
-Copyright (c) 2025 ...
+@article{he2025task,
+  title={Task-Aware 3D Affordance Segmentation via 2D Guidance and Geometric Refinement},
+  author={He, Lian and Liu, Meng and Ye, Qilang and Zhou, Yu and Deng, Xiang and Ding, Gangyi},
+  journal={arXiv preprint arXiv:2511.11702},
+  year={2025}
+}
 ```
 
-You can finalize the license (e.g. MIT / Apache-2.0) and any dependency notices before publishing.
+---
+
+## License
+
+This project is released under the **Apache License 2.0**. See `LICENSE` for the full license text.

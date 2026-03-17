@@ -7,9 +7,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from tqdm import tqdm
 
 class QwenAffordanceModel:
-    """Qwen model for affordance inference."""
     def __init__(self, model_path='Qwen/Qwen2.5-7B-Instruct'):
-        """Initialize Qwen model. model_path: path to model."""
         self.model_path = model_path
         self.model = AutoModelForCausalLM.from_pretrained(
             model_path,
@@ -23,7 +21,6 @@ class QwenAffordanceModel:
 Your task is to identify the specific functional component (affordance) that a person would interact with to perform a given action, and output ONLY the name of the functional component.\n\nGiven a description of an action, provide ONLY the name of the functional component. Be concise and direct.\n\nExamples:\n- Action: \"Close the bedroom door\" → Affordance: handle\n- Action: \"Turn on the light\" → Affordance: switch\n- Action: \"Open the refrigerator\" → Affordance: handle\n- Action: \"Flush the toilet\" → Affordance: button\n- Action: \"Adjust the thermostat\" → Affordance: dial\n- Action: \"Lock the front door\" → Affordance: lock\n- Action: \"Open the window\" → Affordance: handle\n- Action: \"Start the washing machine\" → Affordance: button\n\nNow, analyze this action and identify the functional component:\n\nAction: \"{action_description}\"\n\nAffordance:"""
 
     def generate_response(self, prompt, max_new_tokens=256):
-        """Generate text response. Returns response string."""
         messages = [
             {
                 "role": "user",
@@ -47,7 +44,6 @@ Your task is to identify the specific functional component (affordance) that a p
         return output_text[0]
 
     def infer_affordance(self, action_description):
-        """Infer affordance from action description. Returns dict with description and affordance."""
         try:
             prompt = self.AFFORDANCE_PROMPT.format(action_description=action_description)
             response = self.generate_response(prompt)
@@ -72,7 +68,6 @@ Your task is to identify the specific functional component (affordance) that a p
             }
 
     def process_description_file(self, desc_file_path, visit_id):
-        """Process a single description file. Returns list of results."""
         results = []
         try:
             with open(desc_file_path, 'r', encoding='utf-8') as f:
@@ -95,7 +90,6 @@ Your task is to identify the specific functional component (affordance) that a p
         return results
 
 def process_affordance_inference(data_root, split, model_path='Qwen/Qwen2.5-7B-Instruct'):
-    """Main affordance inference. data_root: data root path, split: train/val/test, model_path: Qwen model path."""
     print("Starting affordance inference...")
     print(f"Data root: {data_root}, split: {split}, model: {model_path}")
     print("Loading Qwen model...")
@@ -131,7 +125,6 @@ def process_affordance_inference(data_root, split, model_path='Qwen/Qwen2.5-7B-I
     print(f"\nDone. Processed {len(all_results)} description(s). Results: {output_dir}")
 
 def main():
-    """Main entry; only affordance mode is supported."""
     parser = argparse.ArgumentParser(description='Qwen affordance inference')
     parser.add_argument('--mode', type=str, choices=['affordance'], required=True, help='Mode: affordance')
     parser.add_argument('--model_path', type=str, default='Qwen/Qwen2.5-7B-Instruct', help='Qwen model path')
@@ -141,6 +134,5 @@ def main():
     if args.mode == 'affordance':
         process_affordance_inference(args.data_root, args.split, args.model_path)
 
-# Example: python qwen.py --mode affordance --data_root path/to/raw_data --split val
 if __name__ == '__main__':
     main()

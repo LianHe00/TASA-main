@@ -6,12 +6,10 @@ import torch
 import torchvision.transforms.functional as TF
 from tqdm import tqdm
 
-# CUDA_VISIBLE_DEVICES=6 python qwen_seg_image.py --data_root path/to/point_clipwithaffordance_output --raw_data_root path/to/raw_data --split val --size 540 540
-
 def crop_image_gpu(image_path, center_x, center_y, width, height, output_dir, image_name_prefix=None, device='cuda'):
     image = Image.open(image_path).convert('RGB')
     img_w, img_h = image.size
-    img_tensor = TF.to_tensor(image).to(device)  # [C, H, W]
+    img_tensor = TF.to_tensor(image).to(device)
     left = int(center_x - width / 2)
     upper = int(center_y - height / 2)
     right = int(center_x + width / 2)
