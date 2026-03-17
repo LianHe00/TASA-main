@@ -2,16 +2,13 @@
 
 ## Environment Setup
 
-Python 3.10+ and a virtual environment (conda or venv) are recommended.
+Python 3.10+ and a virtual environment are recommended.
 
 ```bash
 git clone https://github.com/LianHe00/TASA-main.git
 cd affseg
-
-# Create and activate a virtual environment (optional)
-# conda create -n affseg python=3.10
-# conda activate affseg
-
+conda create -n affseg python=3.10
+conda activate affseg
 pip install -r requirements.txt
 ```
 
