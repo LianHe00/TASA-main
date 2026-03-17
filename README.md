@@ -156,6 +156,10 @@ You can override options (e.g. use color, load text, point count, batch size) vi
 
 ---
 
+## Acknowledgement
+
+This project is built on top of prior efforts in 3D functionality understanding. In particular, we took inspiration from **Fun3DU** ([GitHub repository](https://github.com/tev-fbk/fun3du)) for the overall pipeline design, and we use the **SceneFun3D** dataset ([project page](https://scenefun3d.github.io/)) as our main data source. We sincerely thank the authors of Fun3DU and SceneFun3D for releasing their code and dataset to the community.
+
 ## Citation
 
 If you find this work helpful, please cite:
